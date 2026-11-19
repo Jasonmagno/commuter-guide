@@ -1,0 +1,110 @@
+// Commuter Guide (PUV-TA) - API layer (Node.js, no dependencies).
+// UI -> this API -> COBOL (fare + ETA) -> back to the UI.
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+
+const PORT = process.env.PORT || 3000;
+const COBOL_BIN = path.join(__dirname, 'cobol', process.platform === 'win32' ? 'farecalc.exe' : 'farecalc');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const routes = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'routes.json'), 'utf8'));
+
+// ---------- Sumbong (commuter reports), kept in memory ----------
+const REPORT_TYPES = { TRAFFIC: 'Heavy traffic', ACCIDENT: 'Accident', ROAD_REPAIR: 'Road needs repair' };
+const DELAY_TYPES = ['TRAFFIC', 'ACCIDENT'];          // these slow the trip down
+const REPORT_TTL_MS = 2 * 60 * 60 * 1000;             // reports expire after 2 hours
+let reportSeq = 1;
+const reports = [
+  { id: reportSeq++, routeId: 'R03', type: 'TRAFFIC', location: 'Guadalupe', note: 'Slow-moving near the bridge', at: Date.now() - 20 * 60000 },
+  { id: reportSeq++, routeId: 'R03', type: 'ACCIDENT', location: 'Ayala / Buendia', note: 'Minor collision, one lane blocked', at: Date.now() - 10 * 60000 },
+  { id: reportSeq++, routeId: 'R01', type: 'ROAD_REPAIR', location: 'Western Bicutan', note: 'Big pothole near the corner', at: Date.now() - 45 * 60000 },
+];
+const activeReports = routeId =>
+  reports.filter(r => Date.now() - r.at < REPORT_TTL_MS && (!routeId || r.routeId === routeId));
+
+// ---------- COBOL bridge ----------
+function runCobol(line) {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(COBOL_BIN)) return reject(new Error('COBOL program not built. Run: npm run build'));
+    const child = spawn(COBOL_BIN, []);
+    let out = '', err = '';
+    child.stdout.on('data', d => (out += d));
+    child.stderr.on('data', d => (err += d));
+    child.on('error', reject);
+    child.on('close', code => {
+      if (code !== 0) return reject(new Error(`COBOL exited with ${code}: ${err}`));
+      const f = out.trim().split('\n').pop().split('|');
+      if (f[0] !== 'R') return reject(new Error('Unexpected COBOL output'));
+      resolve({
+        status: f[1], distanceKm: Number(f[2]), regularFare: Number(f[3]), discount: Number(f[4]),
+        farePerPassenger: Number(f[5]), total: Number(f[6]), etaMinutes: Number(f[7]),
+        delayMinutes: Number(f[8]), traffic: f[9],
+      });
+    });
+    child.stdin.write(line + '\n');
+    child.stdin.end();
+  });
+}
+
+const PTYPES = ['REGULAR', 'STUDENT', 'SENIOR', 'PWD'];
+async function planTrip(b) {
+  const route = routes.find(r => r.id === b.routeId);
+  if (!route) throw Object.assign(new Error('Unknown route'), { status: 400 });
+  const from = route.stops[Number(b.from)], to = route.stops[Number(b.to)];
+  if (!from || !to) throw Object.assign(new Error('Unknown stop'), { status: 400 });
+  const ptype = PTYPES.includes(String(b.passengerType).toUpperCase()) ? String(b.passengerType).toUpperCase() : 'BAD';
+  let pax = Number(b.passengers);
+  pax = Number.isFinite(pax) ? Math.trunc(pax) : 0;
+  const trafficReports = activeReports(route.id).filter(r => DELAY_TYPES.includes(r.type)).length;
+
+  // Hand the trip to COBOL - it does the fare, validation and ETA.
+  const cobol = await runCobol(`T ${route.vehicle} ${from.km} ${to.km} ${pax} ${ptype} ${trafficReports}`);
+  return { route: { id: route.id, name: route.name, label: route.label }, from: from.name, to: to.name,
+           passengers: pax, passengerType: ptype, trafficReports, ...cobol };
+}
+
+// ---------- HTTP helpers ----------
+const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json' };
+const send = (res, status, obj) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
+const readBody = req => new Promise((resolve, reject) => {
+  let d = '';
+  req.on('data', c => { d += c; if (d.length > 1e5) { reject(new Error('Body too large')); req.destroy(); } });
+  req.on('end', () => { try { resolve(JSON.parse(d || '{}')); } catch { reject(new Error('Invalid JSON')); } });
+});
+
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = req.url.split('?')[0];
+    if (req.method === 'GET' && url === '/api/routes') return send(res, 200, routes);
+
+    if (req.method === 'POST' && url === '/api/trip') return send(res, 200, await planTrip(await readBody(req)));
+
+    if (req.method === 'GET' && url === '/api/reports') {
+      const routeId = new URL(req.url, 'http://x').searchParams.get('routeId');
+      return send(res, 200, activeReports(routeId).sort((a, b) => b.at - a.at));
+    }
+    if (req.method === 'POST' && url === '/api/reports') {
+      const b = await readBody(req);
+      const route = routes.find(r => r.id === b.routeId);
+      if (!route) throw Object.assign(new Error('Pick a route first'), { status: 400 });
+      if (!REPORT_TYPES[b.type]) throw Object.assign(new Error('Pick a report type'), { status: 400 });
+      const location = String(b.location || '').trim().slice(0, 60);
+      if (!location) throw Object.assign(new Error('Where is it happening?'), { status: 400 });
+      const r = { id: reportSeq++, routeId: route.id, type: b.type, location, note: String(b.note || '').trim().slice(0, 120), at: Date.now() };
+      reports.push(r);
+      return send(res, 201, r);
+    }
+
+    if (req.method === 'GET') {
+      const rel = url === '/' ? '/index.html' : url;
+      const file = path.normalize(path.join(PUBLIC_DIR, rel));
+      if (file.startsWith(PUBLIC_DIR) && fs.existsSync(file) && fs.statSync(file).isFile()) {
+        res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+        return fs.createReadStream(file).pipe(res);
+      }
+    }
+    send(res, 404, { error: 'Not found' });
+  } catch (e) { send(res, e.status || 500, { error: e.message }); }
+});
+server.listen(PORT, () => console.log(`Commuter Guide running at http://localhost:${PORT}`));

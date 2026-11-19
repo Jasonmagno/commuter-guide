@@ -1,0 +1,11 @@
+{
+  "name": "commuter-guide",
+  "version": "1.0.0",
+  "description": "Commuter Guide (PUV-TA): HTML UI + Node API + COBOL fare/ETA engine",
+  "main": "server.js",
+  "scripts": {
+    "build": "cobc -x -free -o cobol/farecalc cobol/farecalc.cob",
+    "start": "node server.js",
+    "test:cobol": "sh cobol/sample-test.sh"
+  }
+}

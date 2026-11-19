@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commuter Guide • PUV-TA</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6ec; --text:#1b1f2a; --muted:#6a7385; --yellow:#ffc928; --navy:#12233f; --green:#1e9e5a; --orange:#f08a24; --red:#d93a3a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.45; }
+  header { background:var(--navy); color:#fff; padding:16px 28px; display:flex; align-items:center; gap:14px; border-bottom:5px solid var(--yellow); }
+  header .bus { font-size:30px; }
+  header h1 { font-size:20px; letter-spacing:.02em; } header p { color:#b8c3d9; font-size:13px; }
+  main { max-width:1180px; margin:0 auto; padding:24px; display:grid; grid-template-columns:1.25fr 1fr; gap:22px; }
+  @media (max-width:900px){ main{grid-template-columns:1fr;} }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .card + .card { margin-top:22px; }
+  h2 { font-size:17px; margin-bottom:14px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:12px 0 5px; }
+  select, input[type=number], input[type=text] { width:100%; height:40px; border:1px solid var(--line); border-radius:8px; padding:0 10px; font-size:15px; background:#fff; color:var(--text); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .btn { background:var(--yellow); color:#1b1f2a; border:0; border-radius:8px; height:44px; font-size:15px; font-weight:700; cursor:pointer; width:100%; margin-top:16px; }
+  .btn:hover { filter:brightness(.95); } .btn.alt { background:var(--navy); color:#fff; height:38px; font-size:13px; }
+  .badge { display:inline-block; font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px; background:#e9edf5; color:var(--navy); }
+  .result { margin-top:18px; }
+  .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:14px 0; }
+  .kpi { background:var(--bg); border-radius:10px; padding:12px; text-align:center; }
+  .kpi b { display:block; font-size:24px; } .kpi span { font-size:12px; color:var(--muted); }
+  .kpi.big { background:var(--navy); color:#fff; } .kpi.big span { color:#b8c3d9; }
+  .rows div { display:flex; justify-content:space-between; padding:5px 0; font-size:14px; border-bottom:1px dashed var(--line); }
+  .light { color:var(--green); } .moderate { color:var(--orange); } .heavy { color:var(--red); }
+  .err { background:#fdecec; color:var(--red); padding:10px 12px; border-radius:8px; font-size:14px; margin-top:14px; }
+  .line { margin-top:16px; border-left:3px solid var(--line); margin-left:8px; padding-left:18px; }
+  .stop { position:relative; padding:6px 0; font-size:14px; color:var(--muted); }
+  .stop::before { content:""; position:absolute; left:-25px; top:12px; width:11px; height:11px; border-radius:50%; background:#fff; border:2px solid #b8c0cf; }
+  .stop.on { color:var(--text); font-weight:600; } .stop.on::before { border-color:var(--navy); background:var(--yellow); }
+  .stop small { color:var(--muted); font-weight:400; margin-left:6px; }
+  .rep { padding:10px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .rep .t { font-weight:700; } .rep .m { color:var(--muted); font-size:12px; }
+  .TRAFFIC .t{color:var(--orange);} .ACCIDENT .t{color:var(--red);} .ROAD_REPAIR .t{color:#7a5af8;}
+  .empty { color:var(--muted); font-size:14px; padding:10px 0; }
+  .note { font-size:12px; color:var(--muted); margin-top:12px; }
+  .ok { color:var(--green); font-size:13px; margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bus">🚌</div>
+  <div><h1>Commuter Guide <span class="badge" style="margin-left:6px">PUV-TA</span></h1>
+  <p>Plan your jeepney &amp; bus ride • fare and ETA calculated by COBOL</p></div>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>🗺️ Plan your trip</h2>
+      <label for="route">Route</label>
+      <select id="route"></select>
+      <div class="two">
+        <div><label for="from">From</label><select id="from"></select></div>
+        <div><label for="to">To</label><select id="to"></select></div>
+      </div>
+      <div class="two">
+        <div><label for="pax">Passengers</label><input id="pax" type="number" min="1" max="10" value="1"></div>
+        <div><label for="ptype">Passenger type</label>
+          <select id="ptype">
+            <option value="REGULAR">Regular</option>
+            <option value="STUDENT">Student (20% off)</option>
+            <option value="SENIOR">Senior (20% off)</option>
+            <option value="PWD">PWD (20% off)</option>
+          </select></div>
+      </div>
+      <button class="btn" id="go">Calculate fare &amp; ETA</button>
+      <div id="out"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>📢 Sumbong — report a problem</h2>
+      <label for="rtype">What's happening?</label>
+      <select id="rtype">
+        <option value="TRAFFIC">🚦 Heavy traffic</option>
+        <option value="ACCIDENT">🚨 Accident</option>
+        <option value="ROAD_REPAIR">🕳️ Road needs repair</option>
+      </select>
+      <label for="rloc">Location</label>
+      <select id="rloc"></select>
+      <label for="rnote">Note (optional)</label>
+      <input id="rnote" type="text" maxlength="120" placeholder="e.g. one lane blocked">
+      <button class="btn alt" id="send">Submit report</button>
+      <div id="rmsg"></div>
+      <p class="note">Traffic and accident reports on a route add delay to its ETA. Reports expire after 2 hours.</p>
+    </div>
+    <div class="card">
+      <h2>Live reports on this route</h2>
+      <div id="reports"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const peso = n => '₱' + Number(n).toFixed(2);
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+const TYPE_LABEL = { TRAFFIC: '🚦 Heavy traffic', ACCIDENT: '🚨 Accident', ROAD_REPAIR: '🕳️ Road repair' };
+const ERRORS = {
+  SAME_STOP: 'Your starting and ending stops are the same.',
+  BAD_PAX: 'Passengers must be from 1 to 10.',
+  BAD_TYPE: 'Invalid passenger type.',
+  TOO_FAR: 'That trip is too long (max 60 km).',
+  BAD_VEHICLE: 'Unsupported vehicle type.',
+  BAD_STOP: 'Invalid stop.'
+};
+let routes = [];
+const cur = () => routes.find(r => r.id === $('route').value);
+
+async function api(url, body) {
+  const res = await fetch(url, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+function fillStops() {
+  const r = cur();
+  for (const id of ['from', 'to', 'rloc']) {
+    const s = $(id), prev = s.value; s.innerHTML = '';
+    r.stops.forEach((st, i) => { const o = el('option', '', id === 'rloc' ? st.name : `${st.name} (${st.km} km)`); o.value = id === 'rloc' ? st.name : i; s.append(o); });
+    if (prev && [...s.options].some(o => o.value === prev)) s.value = prev;
+  }
+  if ($('from').value === $('to').value) $('to').value = r.stops.length - 1;
+}
+
+function drawLine(from, to) {
+  const r = cur(), lo = Math.min(from, to), hi = Math.max(from, to);
+  const box = el('div', 'line');
+  r.stops.forEach((s, i) => { const d = el('div', 'stop' + (i >= lo && i <= hi ? ' on' : ''), s.name); d.append(el('small', '', s.km + ' km')); box.append(d); });
+  return box;
+}
+
+async function calc() {
+  const out = $('out'); out.innerHTML = '';
+  try {
+    const t = await api('/api/trip', { routeId: $('route').value, from: +$('from').value, to: +$('to').value,
+      passengers: +$('pax').value, passengerType: $('ptype').value });
+    history.replaceState(null, '', `?r=${t.route.id}&f=${$('from').value}&t=${$('to').value}&p=${t.passengers}&type=${$('ptype').value}`);
+    const box = el('div', 'result');
+    if (t.status !== 'OK') { box.append(el('div', 'err', ERRORS[t.status] || t.status)); out.append(box); return; }
+
+    box.append(el('span', 'badge', t.route.label), el('div', '', `${t.from} → ${t.to}`));
+    box.lastChild.style.cssText = 'font-weight:700;margin-top:6px';
+    const k = el('div', 'kpis');
+    const kpi = (v, l, c) => { const d = el('div', 'kpi ' + (c || '')); d.append(el('b', '', v), el('span', '', l)); k.append(d); };
+    kpi(peso(t.total), `Total fare (${t.passengers} pax)`, 'big');
+    kpi(t.etaMinutes + ' min', 'Estimated travel time');
+    kpi(t.distanceKm.toFixed(1) + ' km', 'Distance');
+    box.append(k);
+
+    const rows = el('div', 'rows');
+    const row = (a, b, cls) => { const d = el('div'); d.append(el('span', '', a), el('span', cls || '', b)); rows.append(d); };
+    row('Regular fare per person', peso(t.regularFare));
+    if (t.discount > 0) row(`${t.passengerType} discount (20%)`, '−' + peso(t.discount));
+    row('Your fare per person', peso(t.farePerPassenger));
+    row('Traffic', t.traffic, t.traffic.toLowerCase());
+    row('Delay from reports', t.delayMinutes + ' min');
+    box.append(rows);
+    box.append(drawLine(+$('from').value, +$('to').value));
+
+    const share = el('button', 'btn alt', '🔗 Copy shareable link');
+    share.onclick = async () => { try { await navigator.clipboard.writeText(location.href); share.textContent = '✓ Link copied'; } catch { share.textContent = location.href; } };
+    box.append(share);
+    box.append(el('p', 'note', 'Fares are sample rates for a school project. ETA is an estimate.'));
+    out.append(box);
+  } catch (e) { out.append(el('div', 'err', e.message)); }
+}
+
+async function loadReports() {
+  const box = $('reports'); box.innerHTML = '';
+  const list = await api('/api/reports?routeId=' + encodeURIComponent($('route').value));
+  if (!list.length) { box.append(el('div', 'empty', 'No active reports. Smooth ride! 🎉')); return; }
+  for (const r of list) {
+    const d = el('div', 'rep ' + r.type);
+    const mins = Math.max(1, Math.round((Date.now() - r.at) / 60000));
+    d.append(el('div', 't', TYPE_LABEL[r.type]), el('div', '', r.location + (r.note ? ' — ' + r.note : '')), el('div', 'm', `${mins} min ago`));
+    box.append(d);
+  }
+}
+
+$('send').onclick = async () => {
+  const msg = $('rmsg'); msg.innerHTML = '';
+  try {
+    await api('/api/reports', { routeId: $('route').value, type: $('rtype').value, location: $('rloc').value, note: $('rnote').value });
+    $('rnote').value = ''; msg.append(el('div', 'ok', '✓ Thanks! Your report was posted.'));
+    await loadReports(); if ($('out').children.length) calc();
+  } catch (e) { msg.append(el('div', 'err', e.message)); }
+};
+
+$('route').onchange = () => { fillStops(); $('out').innerHTML = ''; loadReports(); };
+$('go').onclick = calc;
+
+(async function init() {
+  routes = await api('/api/routes');
+  routes.forEach(r => { const o = el('option', '', r.name); o.value = r.id; $('route').append(o); });
+  const q = new URLSearchParams(location.search);
+  if (q.get('r') && routes.some(r => r.id === q.get('r'))) $('route').value = q.get('r');
+  fillStops();
+  if (q.get('r')) {                                    // open from a shared link
+    if (q.get('f')) $('from').value = q.get('f');
+    if (q.get('t')) $('to').value = q.get('t');
+    if (q.get('p')) $('pax').value = q.get('p');
+    if (q.get('type')) $('ptype').value = q.get('type');
+    calc();
+  }
+  loadReports();
+})();
+</script>
+</body>
+</html>

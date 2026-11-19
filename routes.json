@@ -1,0 +1,35 @@
+[
+  { "id": "R01", "name": "Bicutan – Market! Market!", "vehicle": "JEEP", "label": "Traditional Jeepney",
+    "stops": [
+      { "name": "Bicutan Terminal", "km": 0 },
+      { "name": "Western Bicutan", "km": 1.8 },
+      { "name": "Taguig City Hall", "km": 3.5 },
+      { "name": "Fort Bonifacio Gate 3", "km": 6.0 },
+      { "name": "Market! Market!", "km": 8.2 } ] },
+  { "id": "R02", "name": "Taguig – Ayala Modern Jeepney", "vehicle": "MODERN", "label": "Modern Jeepney",
+    "stops": [
+      { "name": "Taguig City Hall", "km": 0 },
+      { "name": "BGC High Street", "km": 3.5 },
+      { "name": "Kalayaan Flyover", "km": 6.0 },
+      { "name": "Ayala Triangle", "km": 9.5 } ] },
+  { "id": "R03", "name": "BGC – Ortigas via EDSA (Aircon Bus)", "vehicle": "BUSAC", "label": "Aircon Bus",
+    "stops": [
+      { "name": "BGC Terminal", "km": 0 },
+      { "name": "Guadalupe", "km": 4.5 },
+      { "name": "Ayala / Buendia", "km": 8.0 },
+      { "name": "Shaw Boulevard", "km": 14.0 },
+      { "name": "Ortigas", "km": 17.0 } ] },
+  { "id": "R04", "name": "Alabang – Cubao via EDSA (Ordinary Bus)", "vehicle": "BUS", "label": "Ordinary Bus",
+    "stops": [
+      { "name": "Alabang", "km": 0 },
+      { "name": "FTI", "km": 8.0 },
+      { "name": "Ayala / Buendia", "km": 18.0 },
+      { "name": "Guadalupe", "km": 20.0 },
+      { "name": "Shaw Boulevard", "km": 26.0 },
+      { "name": "Cubao", "km": 32.0 } ] },
+  { "id": "R05", "name": "Bicutan – Alabang Town Center (UV Express)", "vehicle": "UV", "label": "UV Express",
+    "stops": [
+      { "name": "Bicutan Terminal", "km": 0 },
+      { "name": "SLEX Sucat", "km": 6.0 },
+      { "name": "Alabang Town Center", "km": 11.0 } ] }
+]
